@@ -1,10 +1,16 @@
-from tkinter import *
 
+from tkinter import *
+from reportlab.graphics.barcode import code93
+from reportlab.graphics.barcode import code39
+from reportlab.graphics.barcode import usps
+from reportlab.graphics.barcode import usps4s
+from reportlab.graphics.barcode import ecc200datamatrix
 import sqlite3 as sq3
 from tkinter import messagebox
 from reportlab.pdfgen import canvas
 from reportlab.graphics.barcode import code128
 import ttkbootstrap as ttk
+
 
 con = sq3.connect('vales_db.db')
 cur = con.cursor()
@@ -82,13 +88,13 @@ def generar():
     instruct1 = '''SELECT max(_id) FROM vales'''
     cur.execute(instruct1)
     numero = cur.fetchone()
-    numero1 = numero[0]
+    numero1 = numero[0] + 1
     letras = monto_esc.get()
     son = monto_num.get()
     nombrev = nombreva.get()
     cantidad = int(vales.get()/10)
+    my_canvas = canvas.Canvas('Vales'+nombrev+str(son)+'.pdf')
     for h in range(cantidad):
-        my_canvas = canvas.Canvas('Hola'+str(h)+'.pdf')
         my_canvas.line(297.5,842,297.5,0)
         my_canvas.line(0,673.6,595,673.6)
         my_canvas.line(0,505.2,595,505.2)
@@ -126,14 +132,15 @@ def generar():
                 my_canvas.drawString(x+205,y-155,'.................................')
                 my_canvas.drawString(x+120,y-85,numerostring)
                 codigo.drawOn(my_canvas,x+100,y-115)
-                lista1 = [(numero1+1,nombrev,son,0)]
+                lista1 = [(numero1,nombrev,son,0)]
                 con.executemany('''INSERT INTO vales VALUES  (?,?,?,?)''',lista1)
+                con.commit()
                 y -= 168.4
                 numero1 += 1
             y=842
             x = x + 297.5
-
-        my_canvas.save()
+        my_canvas.showPage()
+    my_canvas.save()
 
 def capta_vales(self):
     try:
@@ -197,6 +204,7 @@ def abrir():
     paginas_input = ttk.Entry(top, textvariable=paginas)
     paginas_input.grid(row=4, column=1,padx=10,pady=10)
     '''
+    
 
     boton_generar = ttk.Button(top,text='Generar vales',command=generar)
     boton_generar.grid(row=4, column=1)
@@ -222,6 +230,32 @@ raiz = Tk()
 style = ttk.Style('superhero')
 raiz.title('Vales')
 raiz.iconbitmap("logo_ypf.ico")
+
+def destinatario():
+    top1 = Toplevel()
+    global nombre_agregar
+    nombre_agregar = StringVar()
+
+    nombre_label = ttk.Label(top1,text='Nombre')
+    nombre_label.grid(row=1, column=0, padx=5, pady=5)
+    nombre_input = ttk.Entry(top1,textvariable=nombre_agregar)
+    nombre_input.grid(row=1, column=2, padx=5, pady=5)
+
+    boton_agregar = ttk.Button(top1, command=agregar_destinatario,text="Agregar")
+    boton_agregar.grid(row= 2, column=1)
+
+def agregar_destinatario():
+    instruct1 = '''SELECT max(_id) FROM valesnombres'''
+    cur.execute(instruct1)
+    numero = cur.fetchone()
+    numero1 = numero[0] + 1
+    nombre = nombre_agregar.get()
+    lista2=[(numero1,nombre)]
+    cur.executemany('INSERT INTO valesnombres VALUES (?,?)',lista2)
+    con.commit()
+    
+
+
 #####################################
 #----------INTERFAZ------------------
 #####################################
@@ -232,6 +266,7 @@ raiz.config(menu=barramenu) # agregar el menu a la patanlla principal
 
 bbddmenu = Menu(barramenu, tearoff=0) #crea el submenu bbdd
 bbddmenu.add_command(label='Generar vales',command=abrir)
+bbddmenu.add_command(label='Agregar destinatario', command=destinatario)
 bbddmenu.add_command(label='Salir', command=salir) #agrega el boton salir
 
 
@@ -281,9 +316,12 @@ estado_pasar_button = ttk.Checkbutton(framecampos,command=checkestado)
 estado_pasar_button.grid(row=7,column=1)
 
 
+def on_closing():
+    if messagebox.askokcancel("Quit", "Do you want to quit?"):
+        con.close() # desconecta la base de datos
+        print('p')
+        raiz.destroy()
 
 
-
-
-
+raiz.protocol("WM_DELETE_WINDOW", on_closing)
 raiz.mainloop()
